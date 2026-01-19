@@ -10,7 +10,7 @@ from openai import OpenAI
 import models
 import schemas
 import crud
-from database import SessionLocal, engine
+from database import get_engine, get_session_local, Base
 from utils.parser import parse_pdf
 from utils.cv_parser import parse_cv_pdf
 
@@ -31,6 +31,7 @@ def run_migrations():
     ]
     
     try:
+        engine = get_engine()
         with engine.connect() as conn:
             for m in migrations:
                 try:
@@ -94,6 +95,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Dependency
 def get_db():
+    SessionLocal = get_session_local()
     db = SessionLocal()
     try:
         yield db
@@ -357,6 +359,7 @@ async def upload_image(file: UploadFile = File(...)):
 def startup_event():
     # First, try to create tables and run migrations
     try:
+        engine = get_engine()
         models.Base.metadata.create_all(bind=engine)
         print("Database tables created/verified successfully")
     except Exception as e:
@@ -367,6 +370,7 @@ def startup_event():
     run_migrations()
     
     # Seed project types
+    SessionLocal = get_session_local()
     db = SessionLocal()
     try:
         standard_types = [

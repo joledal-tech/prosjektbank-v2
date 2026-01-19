@@ -19,14 +19,38 @@ def get_database_url():
     # Fallback to standard DATABASE_URL
     return os.getenv("DATABASE_URL", "postgresql://user:password@localhost/prosjektbank")
 
-DATABASE_URL = get_database_url()
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
+# Lazy initialization of engine and SessionLocal
+_engine = None
+_SessionLocal = None
+
+def get_engine():
+    """Get or create the database engine lazily."""
+    global _engine
+    if _engine is None:
+        DATABASE_URL = get_database_url()
+        _engine = create_engine(DATABASE_URL)
+    return _engine
+
+def get_session_local():
+    """Get or create the SessionLocal lazily."""
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return _SessionLocal
+
+# For backwards compatibility - these are now properties that initialize lazily
+@property
+def engine():
+    return get_engine()
+
+@property  
+def SessionLocal():
+    return get_session_local()
+
 def get_db():
+    SessionLocal = get_session_local()
     db = SessionLocal()
     try:
         yield db
