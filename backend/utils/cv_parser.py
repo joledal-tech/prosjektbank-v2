@@ -8,7 +8,18 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Lazy initialization for OpenAI client
+_openai_client = None
+
+def get_openai_client():
+    """Get OpenAI client, initializing lazily."""
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
 
 def parse_cv_pdf(file_content: bytes) -> dict:
     """
@@ -55,6 +66,9 @@ def parse_cv_pdf(file_content: bytes) -> dict:
     """
 
     try:
+        client = get_openai_client()
+        if not client:
+            return {"error": "OpenAI API key not configured"}
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[

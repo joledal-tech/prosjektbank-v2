@@ -14,14 +14,11 @@ from database import SessionLocal, engine
 from utils.parser import parse_pdf
 from utils.cv_parser import parse_cv_pdf
 
-# Create tables
-# Create tables
-models.Base.metadata.create_all(bind=engine)
-
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
 def run_migrations():
+    """Run database migrations. Called during startup event."""
     migrations = [
         "ALTER TABLE projects ADD COLUMN tags JSONB DEFAULT '[]'",
         "ALTER TABLE employees ADD COLUMN bio TEXT",
@@ -33,24 +30,35 @@ def run_migrations():
         "ALTER TABLE project_team_members ADD COLUMN role_summary TEXT"
     ]
     
-    with engine.connect() as conn:
-        for m in migrations:
-            try:
-                conn.execute(text(m))
-                conn.commit()
-                print(f"Migration success: {m}")
-            except ProgrammingError:
-                conn.rollback()
-                # print(f"Column already exists or migration failed: {m}")
-            except Exception as e:
-                conn.rollback()
-                print(f"Migration error for '{m}': {e}")
-
-run_migrations()
+    try:
+        with engine.connect() as conn:
+            for m in migrations:
+                try:
+                    conn.execute(text(m))
+                    conn.commit()
+                    print(f"Migration success: {m}")
+                except ProgrammingError:
+                    conn.rollback()
+                except Exception as e:
+                    conn.rollback()
+                    print(f"Migration error for '{m}': {e}")
+    except Exception as e:
+        print(f"Could not run migrations (database may not be ready): {e}")
 
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Initialize OpenAI client (lazy - only used when needed)
+_openai_client = None
+
+def get_openai_client():
+    """Get OpenAI client, initializing lazily to avoid startup crashes."""
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
 
 app = FastAPI(title="ØMF Prosjektbank v2")
 
@@ -64,6 +72,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Health check endpoints for Cloud Run
+@app.get("/")
+def health_check():
+    return {"status": "healthy", "service": "prosjektbank-backend"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 from fastapi.staticfiles import StaticFiles
 import os
@@ -206,8 +223,11 @@ def generate_employee_bio(employee_id: int, db: Session = Depends(get_db)):
         return {"bio": f"(DEMO-MODUS - Legg inn API-nøkkel for full versjon)\n\n{db_employee.name} er en svært erfaren {db_employee.title} i Ø.M. Fjeld. Gjennom sin karriere har vedkommende opparbeidet seg solid kompetanse innen planlegging og gjennomføring av komplekse byggeprosjekter. {firstName} er kjent for å levere med høyeste kvalitet og har særlig fokus på god dialog med kunden. Erfaringen inkluderer prosjekter med høy teknisk kompleksitet, hvor {firstName} har vist seg som en handlekraftig og løsningsorientert ressursperson."}
 
     try:
+        client = get_openai_client()
+        if not client:
+            return {"bio": "(API-nøkkel mangler - kan ikke generere bio)"}
         response = client.chat.completions.create(
-            model="gpt-4o", # Using gpt-4o for best results
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "Du er en ekspert på å skrive CV-profiler for bygg- og anleggsbransjen."},
                 {"role": "user", "content": prompt}
@@ -335,11 +355,20 @@ async def upload_image(file: UploadFile = File(...)):
 # Seed initial types if empty
 @app.on_event("startup")
 def startup_event():
-    db = SessionLocal()
-    # Check if table exists before querying to avoid errors during initial migration if not using alembic
-    # But since we use create_all, it should be fine.
+    # First, try to create tables and run migrations
     try:
-        # Standard categories from FilterBar
+        models.Base.metadata.create_all(bind=engine)
+        print("Database tables created/verified successfully")
+    except Exception as e:
+        print(f"Could not create database tables: {e}")
+        return  # Don't proceed if database connection failed
+    
+    # Run migrations
+    run_migrations()
+    
+    # Seed project types
+    db = SessionLocal()
+    try:
         standard_types = [
             "Barnehage", "Bolig", "Helse og omsorg", "Hotell", "Næring", 
             "Offentlig", "Skole", "Spesialbygg", "Undervisning"
@@ -351,6 +380,7 @@ def startup_event():
                 db.add(models.ProjectType(name=t_name))
         
         db.commit()
+        print("Project types seeded successfully")
     except Exception as e:
         print(f"Startup seeding error: {e}")
     finally:
