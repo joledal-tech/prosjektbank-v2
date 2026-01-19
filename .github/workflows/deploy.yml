@@ -1,0 +1,73 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: europe-north1
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Build and push backend
+        run: |
+          gcloud builds submit ./backend \
+            --tag gcr.io/$PROJECT_ID/prosjektbank-api
+      
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy prosjektbank-api \
+            --image gcr.io/$PROJECT_ID/prosjektbank-api \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-env-vars "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - uses: actions/checkout@v4
+      
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Get backend URL
+        id: backend-url
+        run: |
+          URL=$(gcloud run services describe prosjektbank-api --region $REGION --format 'value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+      
+      - name: Build and push frontend
+        run: |
+          gcloud builds submit ./frontend \
+            --tag gcr.io/$PROJECT_ID/prosjektbank-web \
+            --substitutions=_NEXT_PUBLIC_API_URL=${{ steps.backend-url.outputs.url }}
+      
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy prosjektbank-web \
+            --image gcr.io/$PROJECT_ID/prosjektbank-web \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --set-env-vars "NEXT_PUBLIC_API_URL=${{ steps.backend-url.outputs.url }}"
