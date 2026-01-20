@@ -21,9 +21,9 @@ backend/.env
 *.db
 *.sqlite3
 
-# Uploaded files (will be stored in cloud storage in production)
-backend/static/uploaded_images/
-backend/static/project_attachments/
+# Uploaded files - now included in git for Cloud Run deployment
+# backend/static/uploaded_images/
+# backend/static/project_attachments/
 
 # IDE
 .idea/
