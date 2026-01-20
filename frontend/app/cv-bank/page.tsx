@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '@/lib/api';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -21,7 +22,7 @@ export default function CVBankIndex() {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const fetchEmployees = () => {
-        fetch('http://localhost:8000/employees/')
+        fetch(`${API_URL}/employees/`)
             .then((res) => res.json())
             .then((data) => {
                 setEmployees(data);
@@ -62,7 +63,7 @@ export default function CVBankIndex() {
                             <div className="h-48 bg-gray-200 dark:bg-gray-700 w-full relative">
                                 {employee.image_url ? (
                                     <img
-                                        src={employee.image_url.startsWith('http') ? employee.image_url : `http://localhost:8000${employee.image_url}`}
+                                        src={employee.image_url.startsWith('http') ? employee.image_url : `${API_URL}${employee.image_url}`}
                                         alt={employee.name}
                                         className="h-full w-full object-cover"
                                     />

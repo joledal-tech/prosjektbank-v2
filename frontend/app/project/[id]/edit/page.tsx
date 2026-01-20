@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '@/lib/api';
 
 import ProjectForm from '../../../../components/ProjectForm';
 import { useParams } from 'next/navigation';
@@ -44,7 +45,7 @@ function EditProjectFormWrapper({ id }: { id: string }) {
 
     useEffect(() => {
         if (id) {
-            fetch(`http://localhost:8000/projects/${id}`)
+            fetch(`${API_URL}/projects/${id}`)
                 .then(res => res.json())
                 .then(data => {
                     setProject(data);

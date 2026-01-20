@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PlusIcon, MapPinIcon, CalendarIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import FilterBar from '../components/FilterBar';
 import ThemeToggle from '../components/ThemeToggle';
+import { API_URL, getStaticUrl } from '../lib/api';
 
 interface Project {
   id: number;
@@ -24,7 +25,7 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:8000/projects/')
+    fetch(`${API_URL}/projects/`)
       .then((res) => res.json())
       .then((data) => {
         setProjects(data);
@@ -78,7 +79,7 @@ export default function Home() {
             <div className="h-48 bg-gray-200 dark:bg-gray-700 w-full object-cover flex items-center justify-center text-gray-500 dark:text-gray-400 overflow-hidden">
               {(project.images && project.images.length > 0) ? (
                 <img
-                  src={project.images[0].url.startsWith('http') ? project.images[0].url : `http://localhost:8000${project.images[0].url}`}
+                  src={getStaticUrl(project.images[0].url)}
                   alt={project.name}
                   className="h-full w-full object-cover"
                 />

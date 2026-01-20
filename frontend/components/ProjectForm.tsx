@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '../lib/api';
 
 import { useState, useEffect } from 'react';
 import CreatableSelect from 'react-select/creatable';
@@ -98,7 +99,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
                 {previewUrl ? (
                     <div className="relative w-full h-full group">
                         <img
-                            src={previewUrl.startsWith('http') || previewUrl.startsWith('blob:') ? previewUrl : `http://localhost:8000${previewUrl}`}
+                            src={previewUrl.startsWith('http') || previewUrl.startsWith('blob:') ? previewUrl : `${API_URL}${previewUrl}`}
                             alt={`Bilde ${index + 1}`}
                             className="w-full h-full object-cover"
                         />
@@ -150,14 +151,14 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
 
     // Fetch types and tags on mount
     useEffect(() => {
-        fetch('http://localhost:8000/types/')
+        fetch(`${API_URL}/types/`)
             .then(res => res.json())
             .then((data: ProjectType[]) => {
                 setTypes(data.map(t => ({ value: t.name, label: t.name })));
             })
             .catch(err => console.error("Failed to fetch types", err));
 
-        fetch('http://localhost:8000/tags/')
+        fetch(`${API_URL}/tags/`)
             .then(res => res.json())
             .then((data: string[]) => {
                 setExistingTags(data.map(t => ({ value: t, label: t })));
@@ -188,7 +189,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
 
         try {
             // 1. Parse PDF
-            const res = await fetch('http://localhost:8000/api/upload', {
+            const res = await fetch(`${API_URL}/api/upload`, {
                 method: 'POST',
                 body: body
             });
@@ -222,7 +223,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
             let payloadImages = [];
             if (data.extracted_images && Array.isArray(data.extracted_images)) {
                 // Update visual state (thumbnails)
-                const extracted: string[] = data.extracted_images.map((path: string) => `http://localhost:8000${path}`);
+                const extracted: string[] = data.extracted_images.map((path: string) => `${API_URL}${path}`);
 
                 // Fill the slots with found images
                 const newImages = [...projectImages];
@@ -246,7 +247,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
             // 3. Create Project
             setUploadFeedback({ type: 'success', message: 'PDF analysert. Oppretter prosjekt...' });
 
-            const createRes = await fetch('http://localhost:8000/projects/', {
+            const createRes = await fetch(`${API_URL}/projects/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -284,7 +285,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
         formData.append('file', file);
 
         try {
-            const res = await fetch(`http://localhost:8000/projects/${initialData.id}/attachments/`, {
+            const res = await fetch(`${API_URL}/projects/${initialData.id}/attachments/`, {
                 method: 'POST',
                 body: formData
             });
@@ -330,7 +331,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
         if (!confirm('Er du sikker på at du vil slette dette vedlegget?')) return;
 
         try {
-            const res = await fetch(`http://localhost:8000/attachments/${id}`, {
+            const res = await fetch(`${API_URL}/attachments/${id}`, {
                 method: 'DELETE'
             });
 
@@ -350,8 +351,8 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
         setLoading(true);
 
         const url = isEdit
-            ? `http://localhost:8000/projects/${initialData.id}`
-            : 'http://localhost:8000/projects/';
+            ? `${API_URL}/projects/${initialData.id}`
+            : `${API_URL}/projects/`;
 
         const method = isEdit ? 'PUT' : 'POST';
 
@@ -366,7 +367,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
                     formDataImg.append('file', img);
 
                     try {
-                        const resImg = await fetch('http://localhost:8000/api/upload-image', {
+                        const resImg = await fetch(`${API_URL}/api/upload-image`, {
                             method: 'POST',
                             body: formDataImg
                         });
@@ -423,7 +424,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
 
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:8000/projects/${initialData.id}`, {
+            const res = await fetch(`${API_URL}/projects/${initialData.id}`, {
                 method: 'DELETE',
             });
 
@@ -709,7 +710,7 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
 
                                         <div className="flex flex-col min-w-0">
                                             <a
-                                                href={`http://localhost:8000${att.file_path}`}
+                                                href={`${API_URL}${att.file_path}`}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 onClick={(e) => e.stopPropagation()}

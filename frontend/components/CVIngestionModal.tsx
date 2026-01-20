@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '../lib/api';
 
 import { useState, useRef } from 'react';
 import { XMarkIcon, CloudArrowUpIcon, CheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
@@ -35,7 +36,7 @@ export default function CVIngestionModal({ isOpen, onClose, onSuccess }: CVInges
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://localhost:8000/employees/upload-cv', {
+            const response = await fetch(`${API_URL}/employees/upload-cv`, {
                 method: 'POST',
                 body: formData,
             });
@@ -57,7 +58,7 @@ export default function CVIngestionModal({ isOpen, onClose, onSuccess }: CVInges
         if (!parsedData) return;
 
         try {
-            const response = await fetch('http://localhost:8000/employees/', {
+            const response = await fetch(`${API_URL}/employees/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(parsedData),

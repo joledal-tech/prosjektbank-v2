@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '@/lib/api';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -34,7 +35,7 @@ export default function ProjectDetailPage() {
     const submitTeamMember = async () => {
         setIsAddingMember(true);
         try {
-            const res = await fetch(`http://localhost:8000/projects/${project.id}/team`, {
+            const res = await fetch(`${API_URL}/projects/${project.id}/team`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -96,7 +97,7 @@ export default function ProjectDetailPage() {
 
     useEffect(() => {
         if (params.id) {
-            fetch(`http://localhost:8000/projects/${params.id}`)
+            fetch(`${API_URL}/projects/${params.id}`)
                 .then(res => res.json())
                 .then(data => {
                     setProject(data);

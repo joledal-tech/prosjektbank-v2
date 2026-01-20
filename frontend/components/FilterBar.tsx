@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_URL } from '../lib/api';
 
 interface FilterBarProps {
     activeFilter: string;
@@ -9,7 +10,7 @@ export default function FilterBar({ activeFilter, onFilterChange }: FilterBarPro
     const [categories, setCategories] = useState<string[]>(["Alle"]);
 
     useEffect(() => {
-        fetch('http://localhost:8000/tags/')
+        fetch(`${API_URL}/tags/`)
             .then(res => res.json())
             .then((data: string[]) => {
                 // Ensure "Alle" is first, then sorted tags

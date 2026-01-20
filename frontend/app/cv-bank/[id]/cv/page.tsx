@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '@/lib/api';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -27,7 +28,7 @@ export default function CompleteCVPage() {
 
     useEffect(() => {
         if (params.id) {
-            fetch(`http://localhost:8000/employees/${params.id}`)
+            fetch(`${API_URL}/employees/${params.id}`)
                 .then(res => res.json())
                 .then(data => {
                     setEmployee(data);
@@ -62,7 +63,7 @@ export default function CompleteCVPage() {
 
     const saveEdit = async () => {
         try {
-            const res = await fetch(`http://localhost:8000/employees/${employee.id}`, {
+            const res = await fetch(`${API_URL}/employees/${employee.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editForm)
@@ -102,7 +103,7 @@ export default function CompleteCVPage() {
     const generateBioWithAI = async () => {
         setIsGeneratingBio(true);
         try {
-            const res = await fetch(`http://localhost:8000/employees/${employee.id}/generate-bio`, {
+            const res = await fetch(`${API_URL}/employees/${employee.id}/generate-bio`, {
                 method: 'POST',
             });
             const data = await res.json();

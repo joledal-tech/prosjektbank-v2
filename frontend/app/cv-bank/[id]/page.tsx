@@ -1,4 +1,5 @@
 'use client';
+import { API_URL, getStaticUrl } from '@/lib/api';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -12,7 +13,7 @@ export default function EmployeeDetailPage() {
 
     useEffect(() => {
         if (params.id) {
-            fetch(`http://localhost:8000/employees/${params.id}`)
+            fetch(`${API_URL}/employees/${params.id}`)
                 .then(res => res.json())
                 .then(data => {
                     setEmployee(data);
