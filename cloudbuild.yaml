@@ -58,6 +58,8 @@ steps:
       - '${_DB_INSTANCE}'
       - '--set-env-vars'
       - 'INSTANCE_CONNECTION_NAME=${_DB_INSTANCE},DB_NAME=prosjektbank,DB_USER=postgres'
+      - '--set-secrets'
+      - 'DB_PASS=db-password:latest'
       - '--memory'
       - '1Gi'
       - '--cpu'
