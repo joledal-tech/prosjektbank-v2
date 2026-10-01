@@ -198,7 +198,11 @@ def add_team_member(db: Session, project_id: int, member: schemas.ProjectTeamMem
     db_member = models.ProjectTeamMember(
         project_id=project_id,
         employee_id=emp_id,
-        role=member.role
+        role=member.role,
+        cv_relevance=member.cv_relevance,
+        reference_name=member.reference_name,
+        reference_phone=member.reference_phone,
+        role_summary=member.role_summary
     )
     db.add(db_member)
     db.commit()
