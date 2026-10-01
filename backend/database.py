@@ -14,10 +14,13 @@ def get_database_url():
         db_pass = os.getenv("DB_PASS", "")
         db_name = os.getenv("DB_NAME", "prosjektbank")
         unix_socket_path = f"/cloudsql/{instance_connection_name}"
-        return f"postgresql://{db_user}:{db_pass}@/{db_name}?host={unix_socket_path}"
+        return f"postgresql+psycopg2://{db_user}:{db_pass}@/{db_name}?host={unix_socket_path}"
     
     # Fallback to standard DATABASE_URL
-    return os.getenv("DATABASE_URL", "postgresql://user:password@localhost/prosjektbank")
+    url = os.getenv("DATABASE_URL", "postgresql+psycopg2://user:password@localhost/prosjektbank")
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return url
 
 Base = declarative_base()
 
