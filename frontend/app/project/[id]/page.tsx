@@ -246,6 +246,32 @@ export default function ProjectDetailPage() {
                         {project.type}
                     </span>
 
+                    {/* Structured Tags Display */}
+                    {project.structured_tags && project.structured_tags.length > 0 && (
+                        <div className="space-y-4 mt-4 mb-6 border-t border-gray-100 dark:border-gray-600 pt-4">
+                            {Object.entries(
+                                project.structured_tags.reduce((acc: any, tag: any) => {
+                                    const cat = tag.category.split(')')[0]; // Use short category name (A, B, C...) or full? Full is better for context.
+                                    // Use full category name
+                                    if (!acc[tag.category]) acc[tag.category] = [];
+                                    acc[tag.category].push(tag);
+                                    return acc;
+                                }, {})
+                            ).sort().map(([category, tags]: [string, any]) => (
+                                <div key={category}>
+                                    <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{category}</h5>
+                                    <div className="flex flex-wrap gap-2">
+                                        {tags.map((tag: any) => (
+                                            <span key={tag.id} className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 text-xs rounded border border-blue-100 dark:border-blue-800 font-medium">
+                                                {tag.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Tags Display */}
                     {project.tags && project.tags.length > 0 ? (
                         <div className="flex flex-wrap gap-2 mt-2">

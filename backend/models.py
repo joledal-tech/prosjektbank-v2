@@ -1,6 +1,24 @@
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy import Table
 from database import Base
+
+project_tags = Table(
+    "project_tags",
+    Base.metadata,
+    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+)
+
+class Tag(Base):
+    __tablename__ = "tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    category = Column(String, index=True) # e.g. "A) Tomt..."
+    
+    projects = relationship("Project", secondary=project_tags, back_populates="structured_tags")
+
 
 class Project(Base):
     __tablename__ = "projects"
@@ -34,7 +52,10 @@ class Project(Base):
     role_description = Column(Text, nullable=True) # Firmaets rolle i prosjektet
 
     image_url = Column(String, nullable=True)
-    tags = Column(JSON, default=list) # List of strings
+    tags = Column(JSON, default=list) # List of strings - Legacy/Ad-hoc
+    
+    # New structured tags
+    structured_tags = relationship("Tag", secondary=project_tags, back_populates="projects")
     
     images = relationship("ProjectImage", back_populates="project", cascade="all, delete-orphan")
     attachments = relationship("ProjectAttachment", back_populates="project", cascade="all, delete-orphan")

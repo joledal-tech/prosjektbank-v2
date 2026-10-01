@@ -27,7 +27,31 @@ def run_migrations():
         "ALTER TABLE project_team_members ADD COLUMN cv_relevance TEXT",
         "ALTER TABLE project_team_members ADD COLUMN reference_name VARCHAR",
         "ALTER TABLE project_team_members ADD COLUMN reference_phone VARCHAR",
-        "ALTER TABLE project_team_members ADD COLUMN role_summary TEXT"
+        "ALTER TABLE project_team_members ADD COLUMN role_summary TEXT",
+        """
+        INSERT INTO project_attachments (project_id, filename, file_path, file_type, upload_date)
+        SELECT p.id, 'Referanseprosjekt Krødsherad brannstasjon, Noresund.docx', '/static/project_attachments/3d617840e08b41de88828fce4eeb0088_Referanseprosjekt_Krødsherad_brannstasjon,_Noresund.docx', 'word', '2026-01-12T12:07:09.489513'
+        FROM projects p WHERE p.name ILIKE '%KRØDSHERAD%'
+        AND NOT EXISTS (SELECT 1 FROM project_attachments pa WHERE pa.project_id = p.id AND pa.file_path = '/static/project_attachments/3d617840e08b41de88828fce4eeb0088_Referanseprosjekt_Krødsherad_brannstasjon,_Noresund.docx')
+        """,
+        """
+        INSERT INTO project_attachments (project_id, filename, file_path, file_type, upload_date)
+        SELECT p.id, 'A23-201 Møbleringsplan 2. Etasje.pdf', '/static/project_attachments/261d1feb2fa34d2c95b2925db78e7435_A23-201_Møbleringsplan_2._Etasje.pdf', 'pdf', '2026-01-12T12:07:24.011166'
+        FROM projects p WHERE p.name ILIKE '%KRØDSHERAD%'
+        AND NOT EXISTS (SELECT 1 FROM project_attachments pa WHERE pa.project_id = p.id AND pa.file_path = '/static/project_attachments/261d1feb2fa34d2c95b2925db78e7435_A23-201_Møbleringsplan_2._Etasje.pdf')
+        """,
+        """
+        INSERT INTO project_attachments (project_id, filename, file_path, file_type, upload_date)
+        SELECT p.id, 'A23-201 Møbleringsplan 2. Etasje.pdf', '/static/project_attachments/dd6b03b7c89e432e8dad32e06225345c_A23-201_Møbleringsplan_2._Etasje.pdf', 'pdf', '2026-01-12T12:07:27.066832'
+        FROM projects p WHERE p.name ILIKE '%KRØDSHERAD%'
+        AND NOT EXISTS (SELECT 1 FROM project_attachments pa WHERE pa.project_id = p.id AND pa.file_path = '/static/project_attachments/dd6b03b7c89e432e8dad32e06225345c_A23-201_Møbleringsplan_2._Etasje.pdf')
+        """,
+        """
+        INSERT INTO project_attachments (project_id, filename, file_path, file_type, upload_date)
+        SELECT p.id, 'A40-101 Fasader (11).pdf', '/static/project_attachments/6c39957f69e14eb4b66eb04889e2023b_A40-101_Fasader_(11).pdf', 'pdf', '2026-01-12T12:07:31.066873'
+        FROM projects p WHERE p.name ILIKE '%KRØDSHERAD%'
+        AND NOT EXISTS (SELECT 1 FROM project_attachments pa WHERE pa.project_id = p.id AND pa.file_path = '/static/project_attachments/6c39957f69e14eb4b66eb04889e2023b_A40-101_Fasader_(11).pdf')
+        """
     ]
     
     try:
@@ -152,6 +176,10 @@ def read_tags(db: Session = Depends(get_db)):
                 
     return sorted(list(unique_tags))
 
+@app.get("/structured-tags/", response_model=List[schemas.Tag])
+def read_structured_tags(db: Session = Depends(get_db)):
+    return crud.get_structured_tags(db)
+
 # Employee / Team Endpoints
 @app.get("/employees/", response_model=List[schemas.Employee])
 def read_employees(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -171,6 +199,13 @@ def read_employee(employee_id: int, db: Session = Depends(get_db)):
 @app.put("/employees/{employee_id}", response_model=schemas.Employee)
 def update_employee(employee_id: int, employee: schemas.EmployeeUpdate, db: Session = Depends(get_db)):
     db_employee = crud.update_employee(db, employee_id=employee_id, employee=employee)
+    if not db_employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return db_employee
+
+@app.delete("/employees/{employee_id}", response_model=schemas.Employee)
+def delete_employee(employee_id: int, db: Session = Depends(get_db)):
+    db_employee = crud.delete_employee(db, employee_id=employee_id)
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     return db_employee
@@ -385,6 +420,85 @@ def startup_event():
         
         db.commit()
         print("Project types seeded successfully")
+        
+        # Seed structured tags (byggekriterier)
+        CATEGORIES = {
+            "A) Tomt, adkomst og logistikk": [
+                "Trang byggetomt / lite riggareal",
+                "Begrenset adkomst (smale veier, lav frihøyde/bredde, én inn/ut)",
+                "Kompleks logistikk / leveransevinduer / just-in-time",
+                "Trafikkavvikling / arbeidsvarsling / påvirkning på offentlig vei",
+                "Begrenset lagring på plass / 'ingen mellomlagring'",
+                "Parkering/rigg må legges offsite (ekstern riggplass)",
+                "Stort materialvolum gjennom liten port/areal (flaskehals)"
+            ],
+            "B) Drift, naboer og omgivelser": [
+                "Bygging i institusjon i full drift (sykehus/skole/flyplass)",
+                "Arbeid i nærhet av pasient-/brukerområder (særlige driftskrav)",
+                "Strenge støykrav / nattarbeid / arbeidstidsrestriksjoner",
+                "Vibrasjonsbegrensninger (naboer, utstyr, kulturminner)",
+                "Støv-/renhetskrav (smitte, lab, produksjon, 'rent bygg')",
+                "Skjerpede nabohensyn (boliger, næring, klagerisiko)",
+                "Krav til kontinuerlig tilgjengelighet/rømningsveier under bygging"
+            ],
+            "C) Grunn, geoteknikk og ytre forhold": [
+                "Krevende grunnforhold (løsmasser, kvikkleire, setninger)",
+                "Høyt grunnvann / vanninntrengning / spunt og tetting",
+                "Forurensede masser / deponikrav / miljørisiko",
+                "Sprengning i tettbygd område / restriksjoner på salver",
+                "Dyp byggegrop / kompleks byggegropstabilitet",
+                "Store terrenginngrep / skråningstabilitet",
+                "Flomfare / overvannshåndtering i anleggsfase",
+                "Vær- og årstidsrisiko (vinterdrift, frost, avfukting, nedbør)"
+            ],
+            "D) Eksisterende bygg, ombygging og usikkerhet": [
+                "Ombygging/tilbygg mot eksisterende bygg (ukjent 'as-built')",
+                "Riving/sanering (asbest, PCB, bly, muggsopp)",
+                "Kulturminner/verneverdige bygg (antikvariske føringer)",
+                "Skjulte konstruksjoner/tekniske anlegg – høy usikkerhet og avdekkingsbehov",
+                "Pågående brukerombygginger/etappevis ferdigstillelse"
+            ],
+            "E) Teknisk kompleksitet og grensesnitt": [
+                "Omfattende samordning med sideentrepriser/mange grensesnitt",
+                "Arbeid tett på kritisk infrastruktur (VA, høyspent, fiber, fjernvarme)",
+                "Omlegging/driftssetting av tekniske anlegg uten nedetid",
+                "Høy teknisk tetthet i sjakter og føringsveier (kollisjonsrisiko)",
+                "Integrasjon mot eksisterende SD-/automasjonssystem (BMS)",
+                "Strenge funksjonstester/idriftssettelse (FAT/SAT, prøvedrift)"
+            ],
+            "F) HMS, sikkerhet og sikring": [
+                "Strenge sikkerhetskrav (adgangskontroll, sikringsobjekt, 'secure site')",
+                "Samtidig drift med publikum – krav til fysisk sikring/sonedeling",
+                "Høyrisikooperasjoner (arbeid i høyden, trange rom, varme arbeider)",
+                "Arbeid nær jernbane/trikk/høyspent – spesielle sikkerhetsregimer"
+            ],
+            "G) Produksjon, montasje og byggemetode": [
+                "Store løft / tung montasje (prefab, mobilkran uten tårnkran)",
+                "Kompleks betongutførelse (vanntett betong, store støper, herdekrav)",
+                "Prefab-heavy prosjekt (toleranser, løfteplan, kranlogistikk)",
+                "Begrensninger på bruk av tårnkran / kranplassering",
+                "Arbeid under bakken / trange arbeidsrom (p-kjeller, kulverter, tunneler)"
+            ],
+            "H) Krav, miljø og fremdriftsregime": [
+                "Strenge miljøkrav (BREEAM, fossilfri byggeplass, utslippsrapportering)",
+                "Særlig høy fremdriftsrisiko (hardt milepælsregime/dagmulkt, kritisk linje)",
+                "Skjerpede myndighetskrav/tilsyn (arbeidstilsyn, brann, SHA)",
+                "Kompleks faseplan/etapper med tidlig overlevering av delområder",
+                "Strenge krav til dokumentasjon/FDV og kvalitetssystem (overleveringspress)"
+            ]
+        }
+        
+        tag_count = 0
+        for category, tags in CATEGORIES.items():
+            for tag_name in tags:
+                existing = db.query(models.Tag).filter(models.Tag.name == tag_name).first()
+                if not existing:
+                    db.add(models.Tag(name=tag_name, category=category))
+                    tag_count += 1
+        
+        db.commit()
+        print(f"Structured tags seeded: {tag_count} new tags added")
+        
     except Exception as e:
         print(f"Startup seeding error: {e}")
     finally:

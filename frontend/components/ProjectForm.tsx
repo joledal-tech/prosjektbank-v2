@@ -6,7 +6,7 @@ import CreatableSelect from 'react-select/creatable';
 import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import FileDropzone from './FileDropzone';
-import { XMarkIcon, PaperClipIcon, DocumentIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, PaperClipIcon, DocumentIcon, PhotoIcon, TrashIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline'; // For download/view
 
 interface ProjectType {
@@ -26,6 +26,27 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
     const [uploadFeedback, setUploadFeedback] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
     const [types, setTypes] = useState<{ value: string; label: string }[]>([]);
     const [existingTags, setExistingTags] = useState<{ value: string; label: string }[]>([]);
+    const [structuredTagsOptions, setStructuredTagsOptions] = useState<{ label: string; options: { value: number; label: string }[] }[]>([]);
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+    const toggleCategory = (category: string) => {
+        const newSet = new Set(expandedCategories);
+        if (newSet.has(category)) {
+            newSet.delete(category);
+        } else {
+            newSet.add(category);
+        }
+        setExpandedCategories(newSet);
+    };
+
+    const toggleStructuredTag = (tagId: number) => {
+        const currentIds = formData.structured_tag_ids || [];
+        const newIds = currentIds.includes(tagId)
+            ? currentIds.filter((id: number) => id !== tagId)
+            : [...currentIds, tagId];
+
+        setFormData(prev => ({ ...prev, structured_tag_ids: newIds }));
+    };
 
     // Attachments State
     const [attachments, setAttachments] = useState<any[]>([]);
@@ -147,14 +168,37 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
         image_url: initialData?.image_url || '',
         client: initialData?.client || '',
         tags: initialData?.tags || [],
+        structured_tag_ids: initialData?.structured_tags ? initialData.structured_tags.map((t: any) => t.id) : [],
     });
 
     // Fetch types and tags on mount
     useEffect(() => {
+        // Fetch structured tags
+        fetch(`${API_URL}/structured-tags/`)
+            .then(res => res.json())
+            .then((data: any[]) => {
+                // Group by category
+                const grouped: { [key: string]: any[] } = {};
+                data.forEach(tag => {
+                    if (!grouped[tag.category]) grouped[tag.category] = [];
+                    grouped[tag.category].push({ value: tag.id, label: tag.name });
+                });
+
+                const options = Object.keys(grouped).sort().map(cat => ({
+                    label: cat,
+                    options: grouped[cat]
+                }));
+                setStructuredTagsOptions(options);
+            })
+            .catch(err => console.error("Failed to fetch structured tags", err));
+
         fetch(`${API_URL}/types/`)
             .then(res => res.json())
             .then((data: ProjectType[]) => {
-                setTypes(data.map(t => ({ value: t.name, label: t.name })));
+                const options = data
+                    .filter((t: any) => t.name && t.name.length < 30)
+                    .map((t: any) => ({ value: t.name, label: t.name }));
+                setTypes(options);
             })
             .catch(err => console.error("Failed to fetch types", err));
 
@@ -179,6 +223,12 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
         // newValue is array of objects {value, label}
         const tags = newValue ? newValue.map((t: any) => t.value) : [];
         setFormData(prev => ({ ...prev, tags: tags }));
+    };
+
+    const handleStructuredTagsChange = (newValue: any) => {
+        // newValue is array of objects {value, label} (from grouped select)
+        const ids = newValue ? newValue.map((t: any) => t.value) : [];
+        setFormData(prev => ({ ...prev, structured_tag_ids: ids }));
     };
 
     const handleFileUpload = async (file: File) => {
@@ -216,7 +266,8 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
                 contact_email: data.contact_email || '',
                 contact_phone: data.contact_phone || '',
                 image_url: data.image_url || '',
-                tags: [] // Parser doesn't extract tags yet
+                tags: [],
+                structured_tag_ids: [] // Parser doesn't extract tags yet
             };
 
             // Handle extracted images
@@ -518,14 +569,81 @@ export default function ProjectForm({ initialData, isEdit = false }: ProjectForm
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (Emneknagger)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Standardiserte Tagger (Kategorisert)</label>
+                        {/* Custom Accordion UI for Structured Tags */}
+                        <div className="border border-gray-200 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800">
+                            {structuredTagsOptions.map((group) => {
+                                const isExpanded = expandedCategories.has(group.label);
+                                const selectedCount = group.options.filter(opt => formData.structured_tag_ids.includes(opt.value)).length;
+
+                                return (
+                                    <div key={group.label} className="border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleCategory(group.label)}
+                                            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className={`font-semibold text-sm ${selectedCount > 0 ? 'text-omf-cyan' : 'text-gray-700 dark:text-gray-200'}`}>
+                                                    {group.label}
+                                                </span>
+                                                {selectedCount > 0 && (
+                                                    <span className="bg-omf-cyan text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                                                        {selectedCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {isExpanded ? (
+                                                <ChevronUpIcon className="h-5 w-5 text-gray-400" />
+                                            ) : (
+                                                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                                            )}
+                                        </button>
+
+                                        {isExpanded && (
+                                            <div className="p-3 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
+                                                {group.options.map((tag) => {
+                                                    const isSelected = formData.structured_tag_ids.includes(tag.value);
+                                                    return (
+                                                        <button
+                                                            key={tag.value}
+                                                            type="button"
+                                                            onClick={() => toggleStructuredTag(tag.value)}
+                                                            className={`text-left px-3 py-2 rounded text-sm transition-all border 
+                                                                ${isSelected
+                                                                    ? 'bg-blue-50 border-omf-cyan text-omf-dark shadow-sm dark:bg-blue-900/30 dark:text-blue-100 dark:border-blue-500'
+                                                                    : 'bg-gray-50 border-transparent text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}
+                                                            `}
+                                                        >
+                                                            <div className="flex items-start gap-2">
+                                                                <div className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 
+                                                                    ${isSelected ? 'bg-omf-cyan border-omf-cyan' : 'bg-white border-gray-300 dark:bg-gray-700 dark:border-gray-500'}
+                                                                `}>
+                                                                    {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                                </div>
+                                                                <span>{tag.label}</span>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Velg tagger fra de forhåndsdefinerte kategoriene (A-H).</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Andre Tags (Fritekst)</label>
                         <CreatableSelect
                             instanceId="tags-select"
                             isMulti
                             options={existingTags}
                             onChange={handleTagsChange}
                             value={formData.tags.map((t: string) => ({ value: t, label: t }))}
-                            placeholder="Velg eller skriv nye tags..."
+                            placeholder="Skriv inn egne tags..."
                             styles={customStyles}
                         />
                     </div>

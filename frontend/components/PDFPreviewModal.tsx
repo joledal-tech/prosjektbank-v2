@@ -113,7 +113,9 @@ export const PDFPreviewModal = ({ project, options, selectedImages, onClose, ini
                         <button
                             onClick={() => {
                                 if (pdfBlob) {
-                                    saveAs(pdfBlob, `${project.name || 'prosjekt'}_referanse.pdf`);
+                                    // Sanitize filename: replace spaces with underscores
+                                    const safeName = (project.name || 'prosjekt').replace(/\s+/g, '_');
+                                    saveAs(pdfBlob, `${safeName}_referanse.pdf`);
                                 }
                             }}
                             disabled={!pdfBlob || loading}

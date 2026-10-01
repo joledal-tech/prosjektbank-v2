@@ -21,8 +21,14 @@ def create_project(db: Session, project: schemas.ProjectCreate):
     # Separate images from project data before creating Project
     project_data = project.dict()
     images = project_data.pop('images', [])
+    tag_ids = project_data.pop('structured_tag_ids', [])
     
     db_project = models.Project(**project_data)
+    
+    if tag_ids:
+        tags = db.query(models.Tag).filter(models.Tag.id.in_(tag_ids)).all()
+        db_project.structured_tags = tags
+
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
@@ -59,6 +65,12 @@ def update_project(db: Session, project_id: int, project: schemas.ProjectUpdate)
                     db_image = models.ProjectImage(url=img_url, project_id=project_id)
                     db.add(db_image)
         
+        if 'structured_tag_ids' in update_data:
+            tag_ids = update_data.pop('structured_tag_ids')
+            if tag_ids is not None:
+                tags = db.query(models.Tag).filter(models.Tag.id.in_(tag_ids)).all()
+                db_project.structured_tags = tags
+        
         for key, value in update_data.items():
             setattr(db_project, key, value)
             
@@ -75,6 +87,9 @@ def delete_project(db: Session, project_id: int):
 
 def get_project_types(db: Session):
     return db.query(models.ProjectType).all()
+
+def get_structured_tags(db: Session):
+    return db.query(models.Tag).all()
 
 # Employee CRUD
 def get_employees(db: Session, skip: int = 0, limit: int = 100):
@@ -150,6 +165,15 @@ def update_employee(db: Session, employee_id: int, employee: schemas.EmployeeUpd
     
     db.commit()
     db.refresh(db_employee)
+    return db_employee
+
+def delete_employee(db: Session, employee_id: int):
+    db_employee = get_employee(db, employee_id)
+    if db_employee:
+        # Delete team memberships first
+        db.query(models.ProjectTeamMember).filter(models.ProjectTeamMember.employee_id == employee_id).delete()
+        db.delete(db_employee)
+        db.commit()
     return db_employee
 
 def add_team_member(db: Session, project_id: int, member: schemas.ProjectTeamMemberCreate):

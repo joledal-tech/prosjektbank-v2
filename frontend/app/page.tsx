@@ -17,12 +17,30 @@ interface Project {
   images?: { url: string }[];
   contract_type?: string;
   tags?: string[];
+  structured_tags?: { id: number; name: string; category: string }[];
+  contract_value_mnok?: number;
+  area_m2?: number;
 }
+
+import { FilterState } from '../components/FilterBar';
 
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('');
+
+  // Advanced Filter State
+  const [filters, setFilters] = useState<FilterState>({
+    type: null,
+    tagCategory: null,
+    tag: null,
+    year: '',
+    location: '',
+    mnok: '',
+    area: ''
+  });
+
+  // Derived state for unique locations
+  const uniqueLocations = Array.from(new Set(projects.map(p => p.location).filter(Boolean))).sort();
 
   useEffect(() => {
     fetch(`${API_URL}/projects/`)
@@ -38,18 +56,49 @@ export default function Home() {
   }, []);
 
   // Filter Logic
-  // Filter Logic
   const filteredProjects = projects.filter((project) => {
-    if (!activeFilter) return true;
-
-    // Filter by TAGS
-    // We check if the project has the active filter in its tags list
-    // The tags from backend are strings, e.g. ["Barnehage", "Offentlig"]
-    if (project.tags && Array.isArray(project.tags)) {
-      return project.tags.includes(activeFilter);
+    // 1. Primary: Project Type
+    if (filters.type && project.type !== filters.type) {
+      return false;
     }
 
-    return false;
+    // 2. Year (Substring match on time_frame)
+    if (filters.year) {
+      if (!project.time_frame || !project.time_frame.toLowerCase().includes(filters.year.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // 3. Location (Exact match on dropdown)
+    if (filters.location && project.location !== filters.location) {
+      return false;
+    }
+
+    // 4. MNOK (Range)
+    if (filters.mnok) {
+      const value = project.contract_value_mnok || 0;
+      if (filters.mnok === '0-50' && value >= 50) return false;
+      if (filters.mnok === '50-100' && (value < 50 || value >= 100)) return false;
+      if (filters.mnok === '100-500' && (value < 100 || value >= 500)) return false;
+      if (filters.mnok === '500+' && value < 500) return false;
+    }
+
+    // 5. Area (Range)
+    if (filters.area) {
+      const area = project.area_m2 || 0;
+      if (filters.area === '0-1000' && area >= 1000) return false;
+      if (filters.area === '1000-5000' && (area < 1000 || area >= 5000)) return false;
+      if (filters.area === '5000-15000' && (area < 5000 || area >= 15000)) return false;
+      if (filters.area === '15000+' && area < 15000) return false;
+    }
+
+    // 6. Structured Tags
+    if (filters.tag) {
+      const hasTag = project.structured_tags?.some(t => t.name === filters.tag);
+      if (!hasTag) return false;
+    }
+
+    return true;
   });
 
   if (loading) return <div className="text-center mt-10">Laster prosjekter...</div>;
@@ -70,7 +119,7 @@ export default function Home() {
         </div>
       </div>
 
-      <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+      <FilterBar filters={filters} onFilterChange={setFilters} uniqueLocations={uniqueLocations} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.map((project) => (

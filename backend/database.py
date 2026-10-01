@@ -41,11 +41,10 @@ def get_session_local():
     return _SessionLocal
 
 # For backwards compatibility - these are now properties that initialize lazily
-@property
+# Wrappers for easier import if needed, but get_engine() is preferred
 def engine():
     return get_engine()
 
-@property  
 def SessionLocal():
     return get_session_local()
 

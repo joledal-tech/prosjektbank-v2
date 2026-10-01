@@ -13,6 +13,16 @@ class ProjectType(ProjectTypeBase):
     class Config:
         from_attributes = True
 
+# Tag Schemas
+class TagBase(BaseModel):
+    name: str
+    category: str
+
+class Tag(TagBase):
+    id: int
+    class Config:
+        from_attributes = True
+
 # Project Schemas
 class ProjectBase(BaseModel):
     name: str
@@ -38,9 +48,11 @@ class ProjectBase(BaseModel):
 
 class ProjectCreate(ProjectBase):
     images: Optional[List[str]] = []
+    structured_tag_ids: Optional[List[int]] = [] # For creating with tags
 
 class ProjectUpdate(ProjectBase):
     images: Optional[List[str]] = None
+    structured_tag_ids: Optional[List[int]] = None # For updating tags
 
 # Image Schemas
 class ProjectImageBase(BaseModel):
@@ -191,6 +203,7 @@ class Project(ProjectBase):
     images: List[ProjectImage] = []
     attachments: List[ProjectAttachment] = []
     team_members: List[ProjectTeamMember] = []
+    structured_tags: List[Tag] = []
     
     class Config:
         from_attributes = True

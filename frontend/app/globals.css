@@ -35,3 +35,21 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .mask-gradient-right {
+    mask-image: linear-gradient(to right, black calc(100% - 60px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 60px), transparent 100%);
+  }
+}
